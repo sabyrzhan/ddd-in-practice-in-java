@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Getting Started: Serving Web Content</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style type="text/css">
+        * {
+            font-size: 20px;
+        }
+        td {
+            padding: 5px;
+        }
+
+        table.moneyLabels td {
+            border: 1px solid blue;
+            padding: 5px;
+            width: 100px;
+            height: 100px;
+        }
+
+        button {
+            width: 200px;
+            height: 50px;
+        }
+    </style>
+</head>
+<body>
+<table align="center" style="text-align: center">
+    <tr>
+        <td>
+            <span id="moneyInsideLabel" th:text="'Money inside: $' + ${atm.atm.moneyInside.getAmount()}"></span>
+        </td>
+        <td>
+            <span id="moneyChargedLabel" th:text="'Money charged: $' + ${atm.atm.moneyCharged}"></span>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2">
+            <table class="moneyLabels">
+                <tr>
+                    <td>
+                        <div>1 CENT</div>
+                        <div id="oneCentCountLabel" th:text="${atm.atm.moneyInside.getOneCentCount()}"></div>
+                    </td>
+                    <td>
+                        <div>10 CENT</div>
+                        <div id="tenCentCountLabel" th:text="${atm.atm.moneyInside.getTenCentCount()}"></div>
+                    </td>
+                    <td>
+                        <div>25 CENT</div>
+                        <div id="quarterLabel" th:text="${atm.atm.moneyInside.getQuarterCount()}"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div>1$</div>
+                        <div id="oneDollarCount" th:text="${atm.atm.moneyInside.getOneDollarCount()}"></div>
+                    </td>
+                    <td>
+                        <div>5$</div>
+                        <div id="fiveDollarCount" th:text="${atm.atm.moneyInside.getFiveDollarCount()}"></div>
+                    </td>
+                    <td>
+                        <div>20$</div>
+                        <div id="twentyDollarCount" th:text="${atm.atm.moneyInside.getTwentyDollarCount()}"></div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2">
+            <input type="text" id="amount" />
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" id="userMessage">
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2">
+            <button onclick="onTakeMoneyClicked()">Take money</button>
+        </td>
+    </tr>
+</table>
+<script type="text/javascript">
+    var moneyInsideLabel = document.querySelector("#moneyInsideLabel");
+    var moneyChargedLabel = document.querySelector("#moneyChargedLabel");
+    var userMessageLabel = document.querySelector("#userMessage");
+
+    var oneCentCountLabel = document.querySelector("#oneCentCountLabel");
+    var tenCentCountLabel = document.querySelector('#tenCentCountLabel');
+    var quarterLabel = document.querySelector('#quarterLabel');
+    var oneDollarCountLabel = document.querySelector('#oneDollarCount');
+    var fiveDollarCountLabel = document.querySelector('#fiveDollarCount');
+    var twentyDollarCountLabel = document.querySelector('#twentyDollarCount');
+    var amountInput = document.querySelector('#amount');
+
+    var sessionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
+
+    var socket = null;
+    initSocket();
+
+    function initSocket() {
+        socket = new WebSocket("ws://localhost:8080/ws?sessionId=" + sessionId);
+        socket.onopen = function(e) {
+            console.log("Socket opened");
+        };
+
+        socket.onmessage = function(e) {
+            var jsonData = JSON.parse(e.data);
+
+            var atm = jsonData['atm'];
+            moneyInsideLabel.innerHTML = 'Money inside: $' + atm['moneyInside']['amount'];
+            moneyChargedLabel.innerHTML = 'Money charged: ' + atm['moneyCharged'];
+            userMessageLabel.innerHTML = jsonData['userMessage'];
+
+            var moneyInside = atm.moneyInside;
+            oneCentCountLabel.innerHTML = moneyInside.oneCentCount;
+            tenCentCountLabel.innerHTML = moneyInside.tenCentCount;
+            quarterLabel.innerHTML = moneyInside.quarterCount;
+            oneDollarCountLabel.innerHTML = moneyInside.oneDollarCount;
+            fiveDollarCountLabel.innerHTML = moneyInside.fiveDollarCount;
+            twentyDollarCountLabel.innerHTML = moneyInside.twentyDollarCount;
+        };
+
+        socket.onclose = function(e) {
+            console.log('Socket closed');
+            var closeCode = e.code;
+            if(closeCode == 1011) {
+                console.log('Socket closed due to server error. Reconnecting.');
+                initSocket();
+            } else {
+                console.log('Socket closed gracefully');
+            }
+        };
+    }
+
+    function onTakeMoneyClicked() {
+        var takeAmount = amountInput.value;
+        var command = {
+            'amount': takeAmount
+        };
+
+        var h = {
+            'action' : 'take',
+            'command': JSON.stringify(command)
+        };
+        socket.send(JSON.stringify(h));
+    }
+</script>
+</body>
+</html>

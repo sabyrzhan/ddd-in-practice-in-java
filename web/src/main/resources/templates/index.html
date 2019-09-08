@@ -1,0 +1,179 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Getting Started: Serving Web Content</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style type="text/css">
+        * {
+            font-size: 20px;
+        }
+        td {
+            padding: 5px;
+        }
+
+        button {
+            width: 200px;
+            height: 50px;
+        }
+    </style>
+</head>
+<body>
+<table align="center" style="text-align: center">
+    <tr>
+        <td>
+            <table>
+                <th:block th:each="pile: ${piles}">
+                    <tr>
+                        <td>
+                            <img width="100" height="100" th:src="${pile.getImagePath()}" />
+                        </td>
+                        <td>
+                            <div th:text="${pile.snackPile.price} + '$'"></div>
+                            <div th:id="'snack_' + ${pile.snackPile.snack.id}" th:text="${pile.snackPile.quantity} + ' left'"></div>
+                        </td>
+                    </tr>
+                </th:block>
+            </table>
+        </td>
+        <td>
+            <table>
+                <tr>
+                    <th:block th:each="pile: ${piles}">
+                        <td>
+                            <button th:id="'buySnack' + ${pile.getSnackPile().getSnack().getId()}" th:onclick="'onBuySnackClicked(' + ${pile.getSnackPile().getSnack().getId()} + ')'" th:text="'Buy a snack ' + ${pile.getSnackPile().getSnack().getName()}"></button>
+                        </td>
+                    </th:block>
+                </tr>
+                <tr>
+                    <td style="text-align: center" colspan="3" id="moneyInserted">
+                        Money inserted: 0.0
+                    </td>
+                </tr>
+                <tr>
+                    <td><button id="put1Cent" onclick="onPut1CentClicked()">Put 1 cent</button></td>
+                    <td><button id="put10cent" onclick="onPut10CentClicked()">Put 10 cent</button></td>
+                    <td><button id="put25cent" onclick="onPut25CentClicked()">Put 25 cent</button></td>
+                </tr>
+                <tr>
+                    <td><button id="put1dollar" onclick="onPut1DollarClicked()">Put 1 dollar</button></td>
+                    <td><button id="put5dollar" onclick="onPut5DollarClicked()">Put 5 dollar</button></td>
+                    <td><button id="put20dollar" onclick="onPut20DollarClicked()">Put 20 dollar</button></td>
+                </tr>
+                <tr>
+                    <td colspan="3" id="userMessage">
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3">
+                        <button id="returnMoney" onclick="onReturnMoneyClicked()">Return money</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" id="moneyInside">
+                        Money inside: 0.0
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<script type="text/javascript">
+    var tryConnectTimes = 0;
+    var moneyInsertedLabel = document.querySelector("#moneyInserted");
+    var moneyInsideLabel = document.querySelector("#moneyInside");
+    var userMessageLabel = document.querySelector("#userMessage");
+
+    var sessionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
+
+    var socket = null;
+    initSocket();
+
+    function initSocket() {
+        socket = new WebSocket("ws://localhost:8080/ws?sessionId=" + sessionId);
+        socket.onopen = function(e) {
+            console.log("Socket opened");
+        };
+
+        socket.onmessage = function(e) {
+            var jsonData = JSON.parse(e.data);
+            moneyInsertedLabel.innerHTML = 'Money inserted: ' + jsonData['moneyInTransaction'];
+            moneyInsideLabel.innerHTML = 'Money inside: ' + jsonData['moneyInside'];
+            userMessageLabel.innerHTML = jsonData['userMessage'];
+            var snackPilesMap = jsonData['snackPiles'];
+            if(snackPilesMap) {
+                for(var i in snackPilesMap) {
+                    var snackLabel = document.querySelector('#snack_' + i);
+                    snackLabel.innerHTML = snackPilesMap[i].quantity + ' left';
+                }
+            }
+        };
+
+        socket.onclose = function(e) {
+            console.log('Soscket closed');
+            var closeCode = e.code;
+            if(closeCode == 1011) {
+                console.log('Socket closed due to server error. Reconnecting.');
+                initSocket();
+            } else {
+                console.log('Socket closed gracefully');
+            }
+        };
+    }
+
+    function onBuySnackClicked(position) {
+        var command = {
+            'position': position
+        };
+
+        var h = {
+            'action' : 'buy',
+            'command': JSON.stringify(command)
+        };
+        socket.send(JSON.stringify(h));
+    }
+
+    function onPut1CentClicked() {
+        putAndSendMoney('ONE_CENT');
+    }
+
+    function onPut10CentClicked() {
+        putAndSendMoney('TEN_CENT');
+    }
+
+    function onPut25CentClicked() {
+        putAndSendMoney('QUARTER_DOLLAR');
+    }
+
+    function onPut1DollarClicked() {
+        putAndSendMoney('ONE_DOLLAR');
+    }
+
+    function onPut5DollarClicked() {
+        putAndSendMoney('FIVE_DOLLAR');
+    }
+
+    function onPut20DollarClicked() {
+        putAndSendMoney('TWENTY_DOLLAR');
+    }
+
+    function onReturnMoneyClicked() {
+        var h = {
+            'action' : 'return',
+            'command': '{}'
+        };
+        socket.send(JSON.stringify(h));
+    }
+
+    function putAndSendMoney(amount) {
+        var commandString = JSON.stringify({'amountToInsert': amount});
+        var obj = {
+            'action': 'put',
+            'command': commandString
+        };
+
+        socket.send(JSON.stringify(obj));
+    }
+
+</script>
+</body>
+</html>
