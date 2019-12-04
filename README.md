@@ -1,6 +1,6 @@
 # Domain Driven Design in Practice in Java
 
-Since I specialize in Java technology not int .NET, I implemented the source code 
+Since I specialize in Java technology not in .NET, I implemented the source code 
 in Java while learning Pluralsight's "Domain Driven Design in Practice" course https://www.pluralsight.com/courses/domain-driven-design-in-practice
 
 The technologies I used in this repo:
